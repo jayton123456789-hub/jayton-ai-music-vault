@@ -1,9 +1,14 @@
 import { NextResponse } from "next/server";
 
-import { clearSessionCookie } from "@/lib/auth/server";
+import { SESSION_COOKIE, getSessionCookieOptions } from "@/lib/auth/session";
 
 export async function POST() {
-  clearSessionCookie();
+  const response = NextResponse.json({ ok: true });
 
-  return NextResponse.json({ ok: true });
+  response.cookies.set(SESSION_COOKIE, "", {
+    ...getSessionCookieOptions(),
+    maxAge: 0
+  });
+
+  return response;
 }

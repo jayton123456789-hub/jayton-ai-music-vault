@@ -1,8 +1,12 @@
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 
-import { setSessionCookie } from "@/lib/auth/server";
 import { prisma } from "@/lib/prisma";
+import {
+  SESSION_COOKIE,
+  createSessionToken,
+  getSessionCookieOptions
+} from "@/lib/auth/session";
 
 type LoginBody = {
   username?: string;
@@ -79,22 +83,24 @@ export async function POST(request: Request) {
       : NextResponse.json({ error: "Invalid credentials." }, { status: 401 });
   }
 
-  await setSessionCookie({
+  const token = await createSessionToken({
     userId: resolvedUser.id,
     username: resolvedUser.username,
     displayName: resolvedUser.displayName
   });
 
-  if (wantsHtml) {
-    return NextResponse.redirect(new URL("/home", request.url));
-  }
+  const response = wantsHtml
+    ? NextResponse.redirect(new URL("/home", request.url))
+    : NextResponse.json({
+        ok: true,
+        user: {
+          id: resolvedUser.id,
+          username: resolvedUser.username,
+          displayName: resolvedUser.displayName
+        }
+      });
 
-  return NextResponse.json({
-    ok: true,
-    user: {
-      id: resolvedUser.id,
-      username: resolvedUser.username,
-      displayName: resolvedUser.displayName
-    }
-  });
+  response.cookies.set(SESSION_COOKIE, token, getSessionCookieOptions());
+
+  return response;
 }
