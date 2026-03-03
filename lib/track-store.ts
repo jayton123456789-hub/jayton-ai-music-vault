@@ -18,6 +18,11 @@ type RawTrackRecord = {
   isPublished: number;
 };
 
+type UploadAccessSettings = {
+  allowDillonUpload: boolean;
+  allowNickUpload: boolean;
+};
+
 const databaseFilePath = path.join(process.cwd(), "prisma", "dev.db");
 
 const globalForTrackDatabase = globalThis as typeof globalThis & {
@@ -79,6 +84,14 @@ function getTrackDatabase() {
         "updatedAt" TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY ("createdByUserId") REFERENCES "User" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
         FOREIGN KEY ("trackId") REFERENCES "Track" ("id") ON DELETE SET NULL ON UPDATE CASCADE
+      );
+    `);
+
+    database.exec(`
+      CREATE TABLE IF NOT EXISTS "PortalSetting" (
+        "key" TEXT NOT NULL PRIMARY KEY,
+        "value" TEXT NOT NULL,
+        "updatedAt" TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
       );
     `);
 
@@ -156,4 +169,33 @@ export function createTrackRecord(input: {
   const insertedId = Number(result.lastInsertRowid);
 
   return selectStatement.get(insertedId) as RawTrackRecord;
+}
+
+export function getUploadAccessSettings(): UploadAccessSettings {
+  const database = getTrackDatabase();
+  const statement = database.prepare(
+    `SELECT "key", "value" FROM "PortalSetting" WHERE "key" IN ('allowDillonUpload','allowNickUpload')`
+  );
+  const rows = statement.all() as Array<{ key: string; value: string }>;
+  const map = new Map(rows.map((row) => [row.key, row.value]));
+
+  return {
+    allowDillonUpload: map.get("allowDillonUpload") === "true",
+    allowNickUpload: map.get("allowNickUpload") === "true"
+  };
+}
+
+export function setUploadAccessSettings(input: UploadAccessSettings): UploadAccessSettings {
+  const database = getTrackDatabase();
+  const now = new Date().toISOString();
+  const upsert = database.prepare(`
+    INSERT INTO "PortalSetting" ("key", "value", "updatedAt")
+    VALUES (?1, ?2, ?3)
+    ON CONFLICT("key") DO UPDATE SET "value"=excluded."value", "updatedAt"=excluded."updatedAt"
+  `);
+
+  upsert.run("allowDillonUpload", String(input.allowDillonUpload), now);
+  upsert.run("allowNickUpload", String(input.allowNickUpload), now);
+
+  return getUploadAccessSettings();
 }

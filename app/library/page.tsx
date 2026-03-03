@@ -17,8 +17,8 @@ export default async function LibraryPage() {
   return (
     <PortalShell
       currentPath="/library"
-      title="Vault library"
-      description="Every published upload is available here with artwork, tags, and inline playback."
+      title="Library"
+      description="All tracks in one place."
       user={session}
     >
       <LibraryGrid tracks={tracks} />

@@ -6,7 +6,7 @@ import { parseBuffer } from "music-metadata";
 
 import { getSession } from "@/lib/auth/server";
 import { findTrackRecordBySlug } from "@/lib/track-store";
-import { createTrack, type TrackStyle } from "@/lib/tracks";
+import { canUserUpload, createTrack, type TrackStyle } from "@/lib/tracks";
 import {
   AUDIO_UPLOAD_DIR,
   ACCEPTED_AUDIO_EXTENSIONS,
@@ -51,8 +51,8 @@ export async function POST(request: Request) {
     return invalidRequest("Authentication required.", 401);
   }
 
-  if (session.username !== "jayton") {
-    return invalidRequest("Only jayton can upload tracks.", 403);
+  if (!canUserUpload(session.username)) {
+    return invalidRequest("Uploads are disabled for this account.", 403);
   }
 
   const formData = await request.formData().catch(() => null);

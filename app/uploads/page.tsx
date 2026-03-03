@@ -17,8 +17,8 @@ export default async function UploadsPage() {
   return (
     <PortalShell
       currentPath="/uploads"
-      title="Upload control room"
-      description="A polished upload studio now sits behind the existing auth wall, with metadata-driven cover extraction and gated publishing."
+      title="Upload Studio"
+      description="Create and publish your next drop."
       user={session}
     >
       <UploadStudio user={session} recentTracks={recentTracks} />

@@ -1,4 +1,9 @@
-import { createTrackRecord, listPublishedTrackRecords } from "@/lib/track-store";
+import {
+  createTrackRecord,
+  getUploadAccessSettings,
+  listPublishedTrackRecords,
+  setUploadAccessSettings
+} from "@/lib/track-store";
 
 export type TrackStyle = "MALE" | "FEMALE";
 
@@ -115,4 +120,33 @@ export async function createTrack(input: {
       sourceType: "SUNO"
     })
   );
+}
+
+export function canUserUpload(username: string) {
+  if (username === "jayton") {
+    return true;
+  }
+
+  const settings = getUploadAccessSettings();
+
+  if (username === "dillon") {
+    return settings.allowDillonUpload;
+  }
+
+  if (username === "nick") {
+    return settings.allowNickUpload;
+  }
+
+  return false;
+}
+
+export function getUploaderSettings() {
+  return getUploadAccessSettings();
+}
+
+export function updateUploaderSettings(input: {
+  allowDillonUpload: boolean;
+  allowNickUpload: boolean;
+}) {
+  return setUploadAccessSettings(input);
 }
