@@ -2,7 +2,6 @@
 
 import { motion } from "framer-motion";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
 const identities = [
@@ -12,7 +11,6 @@ const identities = [
 ] as const;
 
 export function AuthScreen({ initialError }: { initialError?: string }) {
-  const router = useRouter();
   const [selected, setSelected] = useState<(typeof identities)[number]>(identities[0]);
   const [passcode, setPasscode] = useState("");
   const [loading, setLoading] = useState(false);
@@ -27,26 +25,31 @@ export function AuthScreen({ initialError }: { initialError?: string }) {
     setLoading(true);
     setError("");
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12000);
+
     try {
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ username: selected.username, passcode })
+        body: JSON.stringify({ username: selected.username, passcode }),
+        credentials: "same-origin",
+        signal: controller.signal
       });
 
       if (!response.ok) {
         const payload = (await response.json().catch(() => null)) as { error?: string } | null;
         setError(payload?.error || "Login failed. Try again.");
-        setLoading(false);
         return;
       }
 
-      router.push("/home");
-      router.refresh();
+      window.location.href = "/home";
     } catch {
-      setError("Network error. Try again.");
+      setError("Login request timed out or failed. Try again.");
+    } finally {
+      clearTimeout(timeout);
       setLoading(false);
     }
   }
