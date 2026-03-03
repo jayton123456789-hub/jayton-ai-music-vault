@@ -17,14 +17,18 @@ function getSessionSecret() {
 }
 
 function toBase64Url(input: string) {
-  return btoa(input).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+  return Buffer.from(input, "utf8")
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
 }
 
 function fromBase64Url(input: string) {
   const padded = input.replace(/-/g, "+").replace(/_/g, "/");
   const normalized = padded + "=".repeat((4 - (padded.length % 4)) % 4);
 
-  return atob(normalized);
+  return Buffer.from(normalized, "base64").toString("utf8");
 }
 
 async function importSigningKey() {
