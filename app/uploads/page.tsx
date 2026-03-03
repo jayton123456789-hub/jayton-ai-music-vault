@@ -1,11 +1,27 @@
-import { ProtectedPage } from "@/components/protected-page";
+import { redirect } from "next/navigation";
 
-export default function UploadsPage() {
+import { PortalShell } from "@/components/portal-shell";
+import { UploadStudio } from "@/components/uploads-studio";
+import { getSession } from "@/lib/auth/server";
+import { getNewestTracks } from "@/lib/tracks";
+
+export default async function UploadsPage() {
+  const session = await getSession();
+
+  if (!session) {
+    redirect("/login");
+  }
+
+  const recentTracks = await getNewestTracks(4);
+
   return (
-    <ProtectedPage
+    <PortalShell
       currentPath="/uploads"
       title="Upload control room"
-      description="Upload tooling will plug into this shell next. The auth boundary and session handling are already in place."
-    />
+      description="A polished upload studio now sits behind the existing auth wall, with metadata-driven cover extraction and gated publishing."
+      user={session}
+    >
+      <UploadStudio user={session} recentTracks={recentTracks} />
+    </PortalShell>
   );
 }

@@ -1,11 +1,27 @@
-import { ProtectedPage } from "@/components/protected-page";
+import { redirect } from "next/navigation";
 
-export default function LibraryPage() {
+import { LibraryGrid } from "@/components/library-grid";
+import { PortalShell } from "@/components/portal-shell";
+import { getSession } from "@/lib/auth/server";
+import { getPublishedTracks } from "@/lib/tracks";
+
+export default async function LibraryPage() {
+  const session = await getSession();
+
+  if (!session) {
+    redirect("/login");
+  }
+
+  const tracks = await getPublishedTracks();
+
   return (
-    <ProtectedPage
+    <PortalShell
       currentPath="/library"
       title="Vault library"
-      description="This route is middleware-protected and already inherits the personalized favorites tab strip for the active identity."
-    />
+      description="Every published upload is available here with artwork, tags, and inline playback."
+      user={session}
+    >
+      <LibraryGrid tracks={tracks} />
+    </PortalShell>
   );
 }

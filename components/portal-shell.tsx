@@ -21,13 +21,15 @@ type PortalShellProps = {
   description: string;
   currentPath: string;
   user: SessionPayload;
+  children?: React.ReactNode;
 };
 
 export function PortalShell({
   title,
   description,
   currentPath,
-  user
+  user,
+  children
 }: PortalShellProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("mine");
@@ -115,85 +117,93 @@ export function PortalShell({
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35, delay: 0.12 }}
           >
-            <div className="glass-panel rounded-[2rem] border border-white/10 p-6">
-              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.28em] text-rose-300/75">
-                    Favorites View
-                  </p>
-                  <h2 className="mt-2 text-2xl font-semibold text-white">
-                    Personalized tabs follow your identity
-                  </h2>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {tabs.map((tab) => {
-                    const active = activeTab === tab.key;
+            {children ?? (
+              <>
+                <div className="glass-panel rounded-[2rem] border border-white/10 p-6">
+                  <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.28em] text-rose-300/75">
+                        Favorites View
+                      </p>
+                      <h2 className="mt-2 text-2xl font-semibold text-white">
+                        Personalized tabs follow your identity
+                      </h2>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {tabs.map((tab) => {
+                        const active = activeTab === tab.key;
 
-                    return (
-                      <button
-                        key={tab.key}
-                        type="button"
-                        onClick={() => setActiveTab(tab.key)}
-                        className={`rounded-full px-4 py-2 text-sm transition ${
-                          active
-                            ? "bg-white text-slate-950"
-                            : "border border-white/10 bg-white/5 text-slate-300 hover:border-white/25 hover:text-white"
-                        }`}
-                      >
-                        {tab.label}
-                      </button>
-                    );
-                  })}
+                        return (
+                          <button
+                            key={tab.key}
+                            type="button"
+                            onClick={() => setActiveTab(tab.key)}
+                            className={`rounded-full px-4 py-2 text-sm transition ${
+                              active
+                                ? "bg-white text-slate-950"
+                                : "border border-white/10 bg-white/5 text-slate-300 hover:border-white/25 hover:text-white"
+                            }`}
+                          >
+                            {tab.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
 
-            <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-              <div className="glass-panel rounded-[2rem] border border-white/10 p-6">
-                <p className="text-xs uppercase tracking-[0.28em] text-cyan-300/75">Now viewing</p>
-                <h3 className="mt-3 text-3xl font-semibold text-white">
-                  {tabs.find((tab) => tab.key === activeTab)?.label}
-                </h3>
-                <p className="mt-4 max-w-2xl text-sm text-slate-300 md:text-base">
-                  This shell is ready for premium music data. Part 1 establishes the identity gate,
-                  protected routing, and personalized navigation so the next phase can layer in real
-                  content without changing the auth boundary.
-                </p>
-                <div className="mt-8 grid gap-4 md:grid-cols-3">
-                  {["Curated uploads", "Private favorites", "Video exclusives"].map(
-                    (item, index) => (
-                      <motion.div
-                        key={item}
-                        className="rounded-3xl border border-white/10 bg-white/5 p-4"
-                        initial={{ opacity: 0, y: 18 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.25, delay: 0.18 + index * 0.06 }}
-                      >
-                        <p className="text-sm font-medium text-white">{item}</p>
-                        <p className="mt-2 text-sm text-slate-400">
-                          Locked behind the same server-issued vault session.
-                        </p>
-                      </motion.div>
-                    )
-                  )}
+                <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+                  <div className="glass-panel rounded-[2rem] border border-white/10 p-6">
+                    <p className="text-xs uppercase tracking-[0.28em] text-cyan-300/75">
+                      Now viewing
+                    </p>
+                    <h3 className="mt-3 text-3xl font-semibold text-white">
+                      {tabs.find((tab) => tab.key === activeTab)?.label}
+                    </h3>
+                    <p className="mt-4 max-w-2xl text-sm text-slate-300 md:text-base">
+                      This shell is ready for premium music data. Part 1 establishes the identity
+                      gate, protected routing, and personalized navigation so the next phase can
+                      layer in real content without changing the auth boundary.
+                    </p>
+                    <div className="mt-8 grid gap-4 md:grid-cols-3">
+                      {["Curated uploads", "Private favorites", "Video exclusives"].map(
+                        (item, index) => (
+                          <motion.div
+                            key={item}
+                            className="rounded-3xl border border-white/10 bg-white/5 p-4"
+                            initial={{ opacity: 0, y: 18 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.25, delay: 0.18 + index * 0.06 }}
+                          >
+                            <p className="text-sm font-medium text-white">{item}</p>
+                            <p className="mt-2 text-sm text-slate-400">
+                              Locked behind the same server-issued vault session.
+                            </p>
+                          </motion.div>
+                        )
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="glass-panel rounded-[2rem] border border-white/10 p-6">
+                    <p className="text-xs uppercase tracking-[0.28em] text-slate-400">
+                      Access Model
+                    </p>
+                    <ul className="mt-5 grid gap-4 text-sm text-slate-300">
+                      <li className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                        Identity cards initiate the login flow.
+                      </li>
+                      <li className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                        Passcodes are checked against bcrypt hashes in SQLite through Prisma.
+                      </li>
+                      <li className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                        Middleware rejects protected routes without a valid signed cookie.
+                      </li>
+                    </ul>
+                  </div>
                 </div>
-              </div>
-
-              <div className="glass-panel rounded-[2rem] border border-white/10 p-6">
-                <p className="text-xs uppercase tracking-[0.28em] text-slate-400">Access Model</p>
-                <ul className="mt-5 grid gap-4 text-sm text-slate-300">
-                  <li className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                    Identity cards initiate the login flow.
-                  </li>
-                  <li className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                    Passcodes are checked against bcrypt hashes in SQLite through Prisma.
-                  </li>
-                  <li className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                    Middleware rejects protected routes without a valid signed cookie.
-                  </li>
-                </ul>
-              </div>
-            </div>
+              </>
+            )}
           </motion.section>
         </div>
       </div>

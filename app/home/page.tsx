@@ -1,11 +1,27 @@
-import { ProtectedPage } from "@/components/protected-page";
+import { redirect } from "next/navigation";
 
-export default function HomePage() {
+import { HomeDashboard } from "@/components/home-dashboard";
+import { PortalShell } from "@/components/portal-shell";
+import { getSession } from "@/lib/auth/server";
+import { getNewestTracks } from "@/lib/tracks";
+
+export default async function HomePage() {
+  const session = await getSession();
+
+  if (!session) {
+    redirect("/login");
+  }
+
+  const tracks = await getNewestTracks(4);
+
   return (
-    <ProtectedPage
+    <PortalShell
       currentPath="/home"
       title="Private listening room"
-      description="Your premium shell is live. Identity-aware favorites tabs update automatically for the active user while the rest of the portal stays behind the auth wall."
-    />
+      description="Your newest uploads now land in a featured front page while the same identity gate and protected navigation from Part 1 stay intact."
+      user={session}
+    >
+      <HomeDashboard tracks={tracks} />
+    </PortalShell>
   );
 }

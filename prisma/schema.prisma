@@ -8,9 +8,58 @@ datasource db {
 }
 
 model User {
-  id           Int      @id @default(autoincrement())
-  username     String   @unique
-  displayName  String
-  passcodeHash String
-  createdAt    DateTime @default(now())
+  id            Int        @id @default(autoincrement())
+  username      String     @unique
+  displayName   String
+  passcodeHash  String
+  createdAt     DateTime   @default(now())
+  createdTracks Track[]    @relation("TracksCreatedBy")
+  favorites     Favorite[]
+  createdVideos Video[]    @relation("VideosCreatedBy")
+}
+
+model Track {
+  id              Int             @id @default(autoincrement())
+  title           String
+  slug            String          @unique
+  audioPath       String
+  coverPath       String?
+  lyrics          String
+  style           String
+  tags            String
+  sourceType      String          @default("SUNO")
+  createdByUserId Int?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  releaseDate     DateTime?
+  isPublished     Boolean         @default(true)
+  createdByUser   User?           @relation("TracksCreatedBy", fields: [createdByUserId], references: [id])
+  favorites       Favorite[]
+  videos          Video[]
+}
+
+model Favorite {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  trackId   Int
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  track     Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, trackId])
+}
+
+model Video {
+  id              Int      @id @default(autoincrement())
+  title           String
+  slug            String   @unique
+  videoPath       String
+  thumbnailPath   String?
+  description     String?
+  createdByUserId Int?
+  trackId         Int?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  createdByUser   User?    @relation("VideosCreatedBy", fields: [createdByUserId], references: [id])
+  track           Track?   @relation(fields: [trackId], references: [id], onDelete: SetNull)
 }
