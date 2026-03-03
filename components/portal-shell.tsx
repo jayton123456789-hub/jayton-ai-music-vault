@@ -44,9 +44,6 @@ export function PortalShell({ title, description, currentPath, user, children }:
       <div className="relative mx-auto flex w-full max-w-7xl flex-col gap-6">
         <motion.header
           className="glass-panel rounded-[2rem] border border-white/10 p-6"
-          initial={{ opacity: 0, y: 18 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35 }}
         >
           <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div>
@@ -74,9 +71,6 @@ export function PortalShell({ title, description, currentPath, user, children }:
         <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
           <motion.aside
             className="glass-panel rounded-[2rem] border border-white/10 p-4"
-            initial={{ opacity: 0, x: -18 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.35, delay: 0.08 }}
           >
             <nav className="grid gap-2">
               {navItems.map((item) => {
@@ -101,9 +95,6 @@ export function PortalShell({ title, description, currentPath, user, children }:
 
           <motion.section
             className="grid gap-6"
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, delay: 0.12 }}
           >
             {children ?? (
               <div className="glass-panel rounded-[2rem] border border-white/10 p-8 text-white/90">

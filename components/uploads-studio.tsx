@@ -135,9 +135,6 @@ export function UploadStudio({ user, recentTracks }: UploadStudioProps) {
     <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
       <motion.section
         className="glass-panel rounded-[2rem] border border-white/10 p-6"
-        initial={{ opacity: 0, y: 24 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35 }}
       >
         <div className="flex flex-col gap-3">
           <p className="text-xs uppercase tracking-[0.32em] text-cyan-300/80">Upload</p>
@@ -263,9 +260,6 @@ export function UploadStudio({ user, recentTracks }: UploadStudioProps) {
         {isJayton ? (
           <motion.section
             className="glass-panel rounded-[2rem] border border-white/10 p-6"
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, delay: 0.05 }}
           >
             <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Dev Upload Access</p>
             <div className="mt-4 grid gap-3">
@@ -305,9 +299,6 @@ export function UploadStudio({ user, recentTracks }: UploadStudioProps) {
 
         <motion.section
           className="glass-panel rounded-[2rem] border border-white/10 p-6"
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, delay: 0.1 }}
         >
           <p className="text-xs uppercase tracking-[0.3em] text-rose-200/75">Preview</p>
           <div className="mt-5 overflow-hidden rounded-[1.8rem] border border-white/10 bg-slate-950/60 p-4">
@@ -336,9 +327,6 @@ export function UploadStudio({ user, recentTracks }: UploadStudioProps) {
 
         <motion.section
           className="glass-panel rounded-[2rem] border border-white/10 p-6"
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, delay: 0.12 }}
         >
           <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Recent Uploads</p>
           <div className="mt-5 grid gap-4">

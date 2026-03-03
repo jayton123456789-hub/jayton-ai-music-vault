@@ -60,9 +60,6 @@ export function LoginExperience() {
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.14),transparent_30%),radial-gradient(circle_at_20%_80%,rgba(251,113,133,0.18),transparent_28%)]" />
       <motion.div
         className="relative mx-auto flex w-full max-w-6xl flex-col justify-center px-6 py-10"
-        initial={{ opacity: 0, y: 24 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.7, ease: "easeOut" }}
       >
         <section className="glass-panel rounded-[2rem] border border-white/10 p-8 lg:p-12">
           <div className="mb-10 max-w-2xl">
@@ -71,7 +68,7 @@ export function LoginExperience() {
             <p className="mt-4 text-base text-slate-300 md:text-lg">{subtitle}</p>
           </div>
           <div className="grid gap-5 md:grid-cols-3">
-            {PORTAL_IDENTITIES.map((identity, index) => {
+            {PORTAL_IDENTITIES.map((identity) => {
               const active = selectedUser?.username === identity.username;
 
               return (
@@ -83,9 +80,6 @@ export function LoginExperience() {
                     setPasscode("");
                     setError("");
                   }}
-                  initial={{ opacity: 0, y: 18 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: index * 0.08 }}
                   className={`rounded-3xl border p-5 text-left transition ${
                     active
                       ? "border-cyan-300/70 bg-cyan-300/10"
