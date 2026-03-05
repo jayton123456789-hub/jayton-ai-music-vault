@@ -241,3 +241,10 @@ export function setUploadAccessSettings(input: UploadAccessSettings): UploadAcce
 
   return getUploadAccessSettings();
 }
+
+export function deleteTrackRecordById(trackId: number) {
+  const database = getTrackDatabase();
+  const statement = database.prepare(`DELETE FROM "Track" WHERE "id" = ?1`);
+  const result = statement.run(trackId);
+  return Number(result.changes) > 0;
+}

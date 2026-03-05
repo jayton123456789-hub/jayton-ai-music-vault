@@ -21,7 +21,7 @@ export default async function LibraryPage() {
       description="All tracks in one place."
       user={session}
     >
-      <LibraryGrid tracks={tracks} />
+      <LibraryGrid tracks={tracks} canManageTracks={session.username === "jayton"} />
     </PortalShell>
   );
 }

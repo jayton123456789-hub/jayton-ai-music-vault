@@ -21,7 +21,7 @@ export default async function HomePage() {
       description="Fresh drops and featured tracks."
       user={session}
     >
-      <HomeDashboard tracks={tracks} />
+      <HomeDashboard tracks={tracks} canManageTracks={session.username === "jayton"} />
     </PortalShell>
   );
 }

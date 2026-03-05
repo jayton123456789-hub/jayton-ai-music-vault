@@ -1,4 +1,4 @@
-import { list, put } from "@vercel/blob";
+import { del, list, put } from "@vercel/blob";
 
 export type UploadAccessSettings = {
   allowDillonUpload: boolean;
@@ -50,7 +50,7 @@ export async function listTracksFromBlob(): Promise<PersistentTrack[]> {
     return [];
   }
 
-  const response = await list({ prefix: TRACKS_PREFIX, limit: 200 });
+  const response = await list({ prefix: TRACKS_PREFIX, limit: 1000 });
   const blobs = response.blobs.sort(
     (a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
   );
@@ -58,6 +58,41 @@ export async function listTracksFromBlob(): Promise<PersistentTrack[]> {
   const records = await Promise.all(blobs.map((blob) => fetchBlobJson<PersistentTrack>(blob.url)));
 
   return records.filter(Boolean) as PersistentTrack[];
+}
+
+function isBlobMediaUrl(value: string) {
+  return value.includes(".public.blob.vercel-storage.com/");
+}
+
+export async function deleteTrackFromBlob(trackId: number) {
+  if (!isBlobEnabled) {
+    return false;
+  }
+
+  const response = await list({ prefix: TRACKS_PREFIX, limit: 1000 });
+
+  for (const blob of response.blobs) {
+    const record = await fetchBlobJson<PersistentTrack>(blob.url);
+
+    if (!record || record.id !== trackId) {
+      continue;
+    }
+
+    const targets: string[] = [blob.url];
+
+    if (record.audioPath && isBlobMediaUrl(record.audioPath)) {
+      targets.push(record.audioPath);
+    }
+
+    if (record.coverPath && isBlobMediaUrl(record.coverPath)) {
+      targets.push(record.coverPath);
+    }
+
+    await del(targets).catch(() => null);
+    return true;
+  }
+
+  return false;
 }
 
 export async function saveTrackToBlob(track: PersistentTrack) {

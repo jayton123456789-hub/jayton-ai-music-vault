@@ -1,11 +1,13 @@
 import {
   createTrackRecord,
+  deleteTrackRecordById,
   findTrackRecordBySlug,
   getUploadAccessSettings,
   listPublishedTrackRecords,
   setUploadAccessSettings
 } from "@/lib/track-store";
 import {
+  deleteTrackFromBlob,
   isBlobEnabled,
   listTracksFromBlob,
   readUploadSettingsFromBlob,
@@ -183,6 +185,14 @@ export async function createTrack(input: {
       sourceType: "SUNO"
     })
   );
+}
+
+export async function deleteTrackById(trackId: number) {
+  if (isBlobEnabled) {
+    return deleteTrackFromBlob(trackId);
+  }
+
+  return deleteTrackRecordById(trackId);
 }
 
 export async function getUploaderSettings() {
