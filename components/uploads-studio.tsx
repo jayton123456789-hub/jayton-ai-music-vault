@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 
 import type { SessionPayload } from "@/lib/auth/session";
 import type { SerializedTrack, UploadAccessSettings } from "@/lib/tracks";
+import { generateTagsFromStylePrompt } from "@/lib/style-tags";
 
 type UploadStudioProps = {
   user: SessionPayload;
@@ -24,7 +25,7 @@ export function UploadStudio({ user, recentTracks, initialSettings }: UploadStud
   const [title, setTitle] = useState("");
   const [lyrics, setLyrics] = useState("");
   const [style, setStyle] = useState<(typeof STYLE_OPTIONS)[number]["value"]>("MALE");
-  const [tags, setTags] = useState("");
+  const [stylePrompt, setStylePrompt] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [, startTransition] = useTransition();
@@ -40,11 +41,8 @@ export function UploadStudio({ user, recentTracks, initialSettings }: UploadStud
     (user.username === "dillon" && settings.allowDillonUpload) ||
     (user.username === "nick" && settings.allowNickUpload);
 
-  const previewTags = tags
-    .split(",")
-    .map((tag) => tag.trim())
-    .filter(Boolean)
-    .slice(0, 4);
+  const generatedTags = generateTagsFromStylePrompt(stylePrompt);
+  const previewTags = generatedTags.slice(0, 6);
 
   function handleFileSelection(nextFile: File | null) {
     setFile(nextFile);
@@ -87,6 +85,11 @@ export function UploadStudio({ user, recentTracks, initialSettings }: UploadStud
       return;
     }
 
+    if (!stylePrompt.trim()) {
+      setError("Suno style is required.");
+      return;
+    }
+
     setIsSubmitting(true);
     setError("");
     setSuccess("");
@@ -96,7 +99,8 @@ export function UploadStudio({ user, recentTracks, initialSettings }: UploadStud
     formData.set("title", title);
     formData.set("lyrics", lyrics);
     formData.set("style", style);
-    formData.set("tags", tags);
+    formData.set("stylePrompt", stylePrompt);
+    formData.set("tags", generatedTags.join(", "));
 
     let response: Response;
 
@@ -124,7 +128,7 @@ export function UploadStudio({ user, recentTracks, initialSettings }: UploadStud
     setTitle("");
     setLyrics("");
     setStyle("MALE");
-    setTags("");
+    setStylePrompt("");
     setIsSubmitting(false);
     startTransition(() => {
       router.refresh();
@@ -194,7 +198,7 @@ export function UploadStudio({ user, recentTracks, initialSettings }: UploadStud
             </label>
 
             <label className="grid gap-2 text-sm text-slate-300">
-              <span>Style</span>
+              <span>Vocal</span>
               <select
                 value={style}
                 onChange={(event) => setStyle(event.target.value as "MALE" | "FEMALE")}
@@ -223,15 +227,18 @@ export function UploadStudio({ user, recentTracks, initialSettings }: UploadStud
           </label>
 
           <label className="grid gap-2 text-sm text-slate-300">
-            <span>Tags</span>
-            <input
-              value={tags}
-              onChange={(event) => setTags(event.target.value)}
+            <span>Suno Style</span>
+            <textarea
+              value={stylePrompt}
+              onChange={(event) => setStylePrompt(event.target.value)}
               disabled={!canUpload || isSubmitting}
-              className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition focus:border-cyan-300/50"
-              placeholder="anthemic, late-night"
+              className="min-h-28 rounded-[1.2rem] border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition focus:border-cyan-300/50"
+              placeholder="Describe the vibe, instruments, vocals, and energy..."
               required
             />
+            <p className="text-xs text-slate-400">
+              Auto tags: {generatedTags.length ? generatedTags.join(", ") : "Add a style description to generate tags"}
+            </p>
           </label>
 
           {error ? (

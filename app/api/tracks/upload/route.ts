@@ -18,6 +18,7 @@ import {
   saveCoverFile,
   toJsonTagString
 } from "@/lib/upload-utils";
+import { generateTagsFromStylePrompt } from "@/lib/style-tags";
 
 export const runtime = "nodejs";
 
@@ -65,10 +66,16 @@ export async function POST(request: Request) {
   const title = String(formData.get("title") ?? "").trim();
   const lyrics = String(formData.get("lyrics") ?? "").trim();
   const style = String(formData.get("style") ?? "").trim().toUpperCase() as TrackStyle;
-  const tags = String(formData.get("tags") ?? "").trim();
+  const stylePrompt = String(formData.get("stylePrompt") ?? "").trim();
+  const incomingTags = String(formData.get("tags") ?? "").trim();
+  const tags = incomingTags || generateTagsFromStylePrompt(stylePrompt).join(", ");
 
-  if (!title || !lyrics || !tags) {
-    return invalidRequest("Title, lyrics, and tags are required.");
+  if (!title || !lyrics || !stylePrompt) {
+    return invalidRequest("Title, lyrics, and Suno style are required.");
+  }
+
+  if (!tags) {
+    return invalidRequest("Could not generate tags from Suno style.");
   }
 
   if (!STYLE_VALUES.has(style)) {
