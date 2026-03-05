@@ -139,6 +139,7 @@ export function createTrackRecord(input: {
   tags: string;
   sourceType: string;
   createdByUserId: number;
+  releaseDate?: string | null;
 }) {
   const database = getTrackDatabase();
   const now = new Date().toISOString();
@@ -155,8 +156,9 @@ export function createTrackRecord(input: {
       "createdByUserId",
       "createdAt",
       "updatedAt",
+      "releaseDate",
       "isPublished"
-    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, 1)
+    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, 1)
   `);
   const selectStatement = database.prepare(`SELECT * FROM "Track" WHERE "id" = ?1 LIMIT 1`);
   const result = insertStatement.run(
@@ -170,7 +172,8 @@ export function createTrackRecord(input: {
     input.sourceType,
     input.createdByUserId,
     now,
-    now
+    now,
+    input.releaseDate ?? null
   );
   const insertedId = Number(result.lastInsertRowid);
 

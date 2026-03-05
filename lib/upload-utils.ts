@@ -1,10 +1,18 @@
 import { mkdir, writeFile } from "fs/promises";
+import os from "os";
 import path from "path";
 
 import type { TrackStyle } from "@/lib/tracks";
 
-export const AUDIO_UPLOAD_DIR = path.join(process.cwd(), "public", "uploads", "audio");
-export const COVER_UPLOAD_DIR = path.join(process.cwd(), "public", "uploads", "covers");
+const isServerlessRuntime =
+  process.env.VERCEL === "1" || process.env.VERCEL_ENV === "production";
+
+const UPLOAD_ROOT_DIR = isServerlessRuntime
+  ? path.join(os.tmpdir(), "jayton-ai-music-vault", "uploads")
+  : path.join(process.cwd(), "public", "uploads");
+
+export const AUDIO_UPLOAD_DIR = path.join(UPLOAD_ROOT_DIR, "audio");
+export const COVER_UPLOAD_DIR = path.join(UPLOAD_ROOT_DIR, "covers");
 export const DEFAULT_FALLBACK_COVER_PATH = "/uploads/covers/default-track-cover.svg";
 
 const SUPPORTED_MIME_TYPES = new Map([
@@ -126,7 +134,19 @@ export async function createPlaceholderCover(title: string, style: TrackStyle, s
 
   await writeFile(filePath, buildGradientMarkup(title, style), "utf8");
 
-  return `/uploads/covers/${fileName}`;
+  return buildUploadedPublicPath("covers", fileName);
+}
+
+export function buildUploadedPublicPath(kind: "audio" | "covers", fileName: string) {
+  if (isServerlessRuntime) {
+    return `/api/media/${kind}/${encodeURIComponent(fileName)}`;
+  }
+
+  return `/uploads/${kind}/${fileName}`;
+}
+
+export function resolveUploadedFilePath(kind: "audio" | "covers", fileName: string) {
+  return path.join(kind === "audio" ? AUDIO_UPLOAD_DIR : COVER_UPLOAD_DIR, fileName);
 }
 
 export async function saveCoverFile(data: Uint8Array, mimeType: string, stem: string) {
@@ -138,5 +158,5 @@ export async function saveCoverFile(data: Uint8Array, mimeType: string, stem: st
 
   await writeFile(filePath, data);
 
-  return `/uploads/covers/${fileName}`;
+  return buildUploadedPublicPath("covers", fileName);
 }

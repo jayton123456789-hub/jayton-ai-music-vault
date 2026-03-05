@@ -60,6 +60,10 @@ export function HomeDashboard({ tracks }: HomeDashboardProps) {
                       {new Date(track.createdAt).toLocaleDateString()}
                     </span>
                   </div>
+                  <p className="mt-2 text-xs uppercase tracking-[0.2em] text-slate-400">
+                    By {track.createdByDisplayName}
+                    {track.releaseDate ? ` · Released ${new Date(track.releaseDate).toLocaleDateString()}` : ""}
+                  </p>
                   <h3 className="mt-4 text-3xl font-semibold text-white">{track.title}</h3>
                   <p className="mt-3 line-clamp-4 text-sm text-slate-300 md:text-base">
                     {track.lyrics}

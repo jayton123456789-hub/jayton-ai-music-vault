@@ -51,6 +51,10 @@ export function LibraryGrid({ tracks }: LibraryGridProps) {
                       {track.style.toLowerCase()}
                     </span>
                   </div>
+                  <p className="mt-2 text-xs uppercase tracking-[0.2em] text-slate-400">
+                    By {track.createdByDisplayName} · {new Date(track.createdAt).toLocaleDateString()}
+                    {track.releaseDate ? ` · Released ${new Date(track.releaseDate).toLocaleDateString()}` : ""}
+                  </p>
                   <div className="mt-4 flex flex-wrap gap-2">
                     {track.tags.map((tag) => (
                       <span

@@ -39,6 +39,7 @@ export type SerializedTrack = {
   tags: string[];
   sourceType: string;
   createdByUserId: number | null;
+  createdByDisplayName: string;
   createdAt: string;
   updatedAt: string;
   releaseDate: string | null;
@@ -47,6 +48,13 @@ export type SerializedTrack = {
 
 function normalizeCoverPath(coverPath: string | null) {
   return coverPath || "/uploads/covers/default-track-cover.svg";
+}
+
+function getUploaderDisplayName(userId: number | null) {
+  if (userId === 1) return "Jayton";
+  if (userId === 2) return "Dillon";
+  if (userId === 3) return "Nick";
+  return "Unknown";
 }
 
 export function parseTrackTags(tags: string) {
@@ -91,6 +99,7 @@ export function serializeTrack(track: TrackRecord): SerializedTrack {
     tags: parseTrackTags(track.tags),
     sourceType: track.sourceType,
     createdByUserId: track.createdByUserId,
+    createdByDisplayName: getUploaderDisplayName(track.createdByUserId),
     createdAt: track.createdAt,
     updatedAt: track.updatedAt,
     releaseDate: track.releaseDate,
@@ -117,6 +126,7 @@ export async function createTrack(input: {
   style: TrackStyle;
   tags: string;
   createdByUserId: number;
+  releaseDate?: string | null;
 }) {
   return serializeTrack(
     createTrackRecord({
