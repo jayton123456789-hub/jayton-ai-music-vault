@@ -1,3 +1,4 @@
+import os from "os";
 import path from "path";
 import { DatabaseSync } from "node:sqlite";
 
@@ -23,7 +24,12 @@ type UploadAccessSettings = {
   allowNickUpload: boolean;
 };
 
-const databaseFilePath = path.join(process.cwd(), "prisma", "dev.db");
+const isServerlessRuntime =
+  process.env.VERCEL === "1" || process.env.VERCEL_ENV === "production";
+
+const databaseFilePath = isServerlessRuntime
+  ? path.join(os.tmpdir(), "jayton-ai-music-vault.db")
+  : path.join(process.cwd(), "prisma", "dev.db");
 
 const globalForTrackDatabase = globalThis as typeof globalThis & {
   trackDatabase?: DatabaseSync;
@@ -201,8 +207,16 @@ export function setUploadAccessSettings(input: UploadAccessSettings): UploadAcce
     ON CONFLICT("key") DO UPDATE SET "value"=excluded."value", "updatedAt"=excluded."updatedAt"
   `);
 
-  upsert.run("allowDillonUpload", String(input.allowDillonUpload), now);
-  upsert.run("allowNickUpload", String(input.allowNickUpload), now);
+  try {
+    upsert.run("allowDillonUpload", String(input.allowDillonUpload), now);
+    upsert.run("allowNickUpload", String(input.allowNickUpload), now);
+  } catch (error) {
+    if (error instanceof Error && /readonly/i.test(error.message)) {
+      return getUploadAccessSettings();
+    }
+
+    throw error;
+  }
 
   return getUploadAccessSettings();
 }
