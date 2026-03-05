@@ -48,6 +48,21 @@ function getTrackDatabase() {
     const database = globalForTrackDatabase.trackDatabase;
 
     database.exec(`
+      CREATE TABLE IF NOT EXISTS "User" (
+        "id" INTEGER NOT NULL PRIMARY KEY,
+        "username" TEXT NOT NULL UNIQUE,
+        "displayName" TEXT NOT NULL
+      );
+    `);
+
+    database.exec(`
+      INSERT OR IGNORE INTO "User" ("id", "username", "displayName") VALUES
+      (1, 'jayton', 'Jayton'),
+      (2, 'dillon', 'Dillon'),
+      (3, 'nick', 'Nick');
+    `);
+
+    database.exec(`
       CREATE TABLE IF NOT EXISTS "Track" (
         "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
         "title" TEXT NOT NULL,
