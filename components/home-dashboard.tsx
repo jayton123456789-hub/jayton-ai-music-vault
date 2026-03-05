@@ -2,13 +2,16 @@
 
 import { motion } from "framer-motion";
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import type { SerializedTrack } from "@/lib/tracks";
 
+type DashboardTrack = SerializedTrack & { lyricVideoSlug?: string | null };
+
 type HomeDashboardProps = {
-  tracks: SerializedTrack[];
+  tracks: DashboardTrack[];
   canManageTracks?: boolean;
 };
 
@@ -149,6 +152,19 @@ export function HomeDashboard({ tracks, canManageTracks = false }: HomeDashboard
                         {tag}
                       </span>
                     ))}
+                  </div>
+
+                  <audio controls preload="none" className="mt-5 w-full opacity-90" src={track.audioPath}>
+                    Your browser does not support the audio element.
+                  </audio>
+
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <Link
+                      href={track.lyricVideoSlug ? `/videos/watch/${track.lyricVideoSlug}` : `/videos?trackId=${track.id}`}
+                      className="rounded-xl border border-cyan-300/35 bg-cyan-300/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-100 transition hover:bg-cyan-300/20"
+                    >
+                      {track.lyricVideoSlug ? "Watch Lyric Video" : "Create Lyric Video"}
+                    </Link>
                   </div>
                 </div>
               </div>

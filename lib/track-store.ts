@@ -24,6 +24,19 @@ type UploadAccessSettings = {
   allowNickUpload: boolean;
 };
 
+export type RawVideoRecord = {
+  id: number;
+  title: string;
+  slug: string;
+  videoPath: string;
+  thumbnailPath: string | null;
+  description: string | null;
+  createdByUserId: number | null;
+  trackId: number | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 const isServerlessRuntime =
   process.env.VERCEL === "1" ||
   Boolean(process.env.VERCEL_ENV) ||
@@ -246,5 +259,111 @@ export function deleteTrackRecordById(trackId: number) {
   const database = getTrackDatabase();
   const statement = database.prepare(`DELETE FROM "Track" WHERE "id" = ?1`);
   const result = statement.run(trackId);
+  return Number(result.changes) > 0;
+}
+
+export function listVideoRecords() {
+  const database = getTrackDatabase();
+  const statement = database.prepare(`
+    SELECT *
+    FROM "Video"
+    ORDER BY datetime("createdAt") DESC
+  `);
+
+  return statement.all() as RawVideoRecord[];
+}
+
+export function findVideoRecordBySlug(slug: string) {
+  const database = getTrackDatabase();
+  const statement = database.prepare(`
+    SELECT *
+    FROM "Video"
+    WHERE "slug" = ?1
+    LIMIT 1
+  `);
+
+  return (statement.get(slug) as RawVideoRecord | undefined) ?? null;
+}
+
+export function findVideoRecordByTrackId(trackId: number) {
+  const database = getTrackDatabase();
+  const statement = database.prepare(`
+    SELECT *
+    FROM "Video"
+    WHERE "trackId" = ?1
+    LIMIT 1
+  `);
+
+  return (statement.get(trackId) as RawVideoRecord | undefined) ?? null;
+}
+
+export function upsertVideoRecordForTrack(input: {
+  title: string;
+  slug: string;
+  videoPath: string;
+  description: string;
+  createdByUserId: number;
+  trackId: number;
+}) {
+  const database = getTrackDatabase();
+  const now = new Date().toISOString();
+  const existing = findVideoRecordByTrackId(input.trackId);
+
+  if (existing) {
+    const statement = database.prepare(`
+      UPDATE "Video"
+      SET "title" = ?1,
+          "slug" = ?2,
+          "videoPath" = ?3,
+          "description" = ?4,
+          "createdByUserId" = ?5,
+          "updatedAt" = ?6
+      WHERE "id" = ?7
+    `);
+
+    statement.run(
+      input.title,
+      input.slug,
+      input.videoPath,
+      input.description,
+      input.createdByUserId,
+      now,
+      existing.id
+    );
+
+    return findVideoRecordBySlug(input.slug) ?? findVideoRecordByTrackId(input.trackId);
+  }
+
+  const insert = database.prepare(`
+    INSERT INTO "Video" (
+      "title",
+      "slug",
+      "videoPath",
+      "description",
+      "createdByUserId",
+      "trackId",
+      "createdAt",
+      "updatedAt"
+    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+  `);
+
+  insert.run(
+    input.title,
+    input.slug,
+    input.videoPath,
+    input.description,
+    input.createdByUserId,
+    input.trackId,
+    now,
+    now
+  );
+
+  return findVideoRecordBySlug(input.slug);
+}
+
+export function deleteVideoRecordById(videoId: number) {
+  const database = getTrackDatabase();
+  const statement = database.prepare(`DELETE FROM "Video" WHERE "id" = ?1`);
+  const result = statement.run(videoId);
   return Number(result.changes) > 0;
 }

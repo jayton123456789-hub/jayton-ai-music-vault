@@ -23,8 +23,32 @@ export type PersistentTrack = {
   isPublished: boolean;
 };
 
+export type PersistentLyricVideo = {
+  id: number;
+  title: string;
+  slug: string;
+  videoPath: string;
+  trackId: number;
+  trackSlug: string;
+  trackTitle: string;
+  trackAudioPath: string;
+  trackCoverPath: string;
+  trackLyrics: string;
+  template: "NEON" | "DREAMY" | "CINEMATIC" | "AURORA";
+  fontFamily: "INTER" | "MONTSERRAT" | "RALEWAY" | "BEBAS";
+  lyricMode: "LINE" | "KARAOKE";
+  primaryColor: string;
+  secondaryColor: string;
+  accentColor: string;
+  createdByUserId: number | null;
+  createdByDisplayName: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 const TRACKS_PREFIX = "portal/tracks/";
 const SETTINGS_PREFIX = "portal/settings/";
+const LYRIC_VIDEOS_PREFIX = "portal/lyric-videos/";
 
 export const isBlobEnabled = Boolean(process.env.BLOB_READ_WRITE_TOKEN);
 
@@ -45,16 +69,20 @@ async function fetchBlobJson<T>(url: string): Promise<T | null> {
   return (await response.json().catch(() => null)) as T | null;
 }
 
+async function listBlobsSorted(prefix: string, limit = 1000) {
+  const response = await list({ prefix, limit });
+
+  return response.blobs.sort(
+    (a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
+  );
+}
+
 export async function listTracksFromBlob(): Promise<PersistentTrack[]> {
   if (!isBlobEnabled) {
     return [];
   }
 
-  const response = await list({ prefix: TRACKS_PREFIX, limit: 1000 });
-  const blobs = response.blobs.sort(
-    (a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
-  );
-
+  const blobs = await listBlobsSorted(TRACKS_PREFIX);
   const records = await Promise.all(blobs.map((blob) => fetchBlobJson<PersistentTrack>(blob.url)));
 
   return records.filter(Boolean) as PersistentTrack[];
@@ -69,9 +97,9 @@ export async function deleteTrackFromBlob(trackId: number) {
     return false;
   }
 
-  const response = await list({ prefix: TRACKS_PREFIX, limit: 1000 });
+  const blobs = await listBlobsSorted(TRACKS_PREFIX);
 
-  for (const blob of response.blobs) {
+  for (const blob of blobs) {
     const record = await fetchBlobJson<PersistentTrack>(blob.url);
 
     if (!record || record.id !== trackId) {
@@ -111,22 +139,75 @@ export async function saveTrackToBlob(track: PersistentTrack) {
   });
 }
 
+export async function listLyricVideosFromBlob(): Promise<PersistentLyricVideo[]> {
+  if (!isBlobEnabled) {
+    return [];
+  }
+
+  const blobs = await listBlobsSorted(LYRIC_VIDEOS_PREFIX);
+  const records = await Promise.all(blobs.map((blob) => fetchBlobJson<PersistentLyricVideo>(blob.url)));
+
+  return records.filter(Boolean) as PersistentLyricVideo[];
+}
+
+export async function findLyricVideoByTrackIdInBlob(trackId: number) {
+  const videos = await listLyricVideosFromBlob();
+  return videos.find((video) => video.trackId === trackId) ?? null;
+}
+
+export async function findLyricVideoBySlugInBlob(slug: string) {
+  const videos = await listLyricVideosFromBlob();
+  return videos.find((video) => video.slug === slug) ?? null;
+}
+
+export async function saveLyricVideoToBlob(video: PersistentLyricVideo) {
+  if (!isBlobEnabled) {
+    return;
+  }
+
+  const pathname = `${LYRIC_VIDEOS_PREFIX}${video.trackId}.json`;
+
+  await put(pathname, JSON.stringify(video), {
+    access: "public",
+    contentType: "application/json",
+    addRandomSuffix: false,
+    allowOverwrite: true
+  });
+}
+
+export async function deleteLyricVideoFromBlob(videoId: number) {
+  if (!isBlobEnabled) {
+    return false;
+  }
+
+  const blobs = await listBlobsSorted(LYRIC_VIDEOS_PREFIX);
+
+  for (const blob of blobs) {
+    const record = await fetchBlobJson<PersistentLyricVideo>(blob.url);
+
+    if (!record || record.id !== videoId) {
+      continue;
+    }
+
+    await del([blob.url]).catch(() => null);
+    return true;
+  }
+
+  return false;
+}
+
 export async function readUploadSettingsFromBlob(): Promise<UploadAccessSettings> {
   if (!isBlobEnabled) {
     return defaultUploadSettings();
   }
 
-  const response = await list({ prefix: SETTINGS_PREFIX, limit: 20 });
+  const blobs = await listBlobsSorted(SETTINGS_PREFIX, 20);
 
-  if (!response.blobs.length) {
+  if (!blobs.length) {
     return defaultUploadSettings();
   }
 
-  const latest = response.blobs.sort(
-    (a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
-  )[0];
-
-  const payload = await fetchBlobJson<Partial<UploadAccessSettings>>(latest.url);
+  const payload = await fetchBlobJson<Partial<UploadAccessSettings>>(blobs[0].url);
 
   return {
     allowDillonUpload:

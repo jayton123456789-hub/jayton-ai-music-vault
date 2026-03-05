@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { LibraryGrid } from "@/components/library-grid";
 import { PortalShell } from "@/components/portal-shell";
 import { getSession } from "@/lib/auth/server";
+import { getLyricVideoMapByTrackId } from "@/lib/lyric-videos";
 import { getPublishedTracks } from "@/lib/tracks";
 
 export default async function LibraryPage() {
@@ -12,7 +13,15 @@ export default async function LibraryPage() {
     redirect("/login");
   }
 
-  const tracks = await getPublishedTracks();
+  const [tracks, lyricVideoMap] = await Promise.all([
+    getPublishedTracks(),
+    getLyricVideoMapByTrackId()
+  ]);
+
+  const tracksWithVideos = tracks.map((track) => ({
+    ...track,
+    lyricVideoSlug: lyricVideoMap[track.id] ?? null
+  }));
 
   return (
     <PortalShell
@@ -21,7 +30,7 @@ export default async function LibraryPage() {
       description="All tracks in one place."
       user={session}
     >
-      <LibraryGrid tracks={tracks} canManageTracks={session.username === "jayton"} />
+      <LibraryGrid tracks={tracksWithVideos} canManageTracks={session.username === "jayton"} />
     </PortalShell>
   );
 }
