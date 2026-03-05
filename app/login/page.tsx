@@ -6,7 +6,7 @@ import { getSession } from "@/lib/auth/server";
 export default async function LoginPage({
   searchParams
 }: {
-  searchParams?: { error?: string };
+  searchParams?: { error?: string; next?: string };
 }) {
   const session = await getSession();
 
@@ -14,5 +14,12 @@ export default async function LoginPage({
     redirect("/home");
   }
 
-  return <AuthScreen initialError={searchParams?.error === "invalid" ? "Wrong passcode. Try again." : ""} />;
+  const initialError =
+    searchParams?.error === "invalid"
+      ? "Wrong passcode. Try again."
+      : searchParams?.error === "missing"
+      ? "Username and passcode are required."
+      : "";
+
+  return <AuthScreen initialError={initialError} nextPath={searchParams?.next} />;
 }

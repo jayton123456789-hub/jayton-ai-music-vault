@@ -10,49 +10,18 @@ const identities = [
   { username: "nick", label: "Nick" }
 ] as const;
 
-export function AuthScreen({ initialError }: { initialError?: string }) {
+export function AuthScreen({
+  initialError,
+  nextPath
+}: {
+  initialError?: string;
+  nextPath?: string;
+}) {
   const [selected, setSelected] = useState<(typeof identities)[number]>(identities[0]);
   const [passcode, setPasscode] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(initialError || "");
 
   const subtitle = useMemo(() => `Signing in as ${selected.label}`, [selected.label]);
-
-  async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!passcode.trim()) return;
-
-    setLoading(true);
-    setError("");
-
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 12000);
-
-    try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ username: selected.username, passcode }),
-        credentials: "same-origin",
-        signal: controller.signal
-      });
-
-      if (!response.ok) {
-        const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-        setError(payload?.error || "Login failed. Try again.");
-        return;
-      }
-
-      window.location.href = "/home";
-    } catch {
-      setError("Login request timed out or failed. Try again.");
-    } finally {
-      clearTimeout(timeout);
-      setLoading(false);
-    }
-  }
 
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#040816] px-5 py-8">
@@ -90,7 +59,6 @@ export function AuthScreen({ initialError }: { initialError?: string }) {
                     onClick={() => {
                       setSelected(id);
                       setPasscode("");
-                      setError("");
                     }}
                     className={`rounded-full px-4 py-2 text-sm transition ${
                       active
@@ -104,10 +72,19 @@ export function AuthScreen({ initialError }: { initialError?: string }) {
               })}
             </div>
 
-            <form className="mt-5 space-y-4" onSubmit={onSubmit}>
+            <form
+              className="mt-5 space-y-4"
+              method="post"
+              action="/api/auth/login"
+              onSubmit={() => setLoading(true)}
+            >
+              <input type="hidden" name="username" value={selected.username} />
+              <input type="hidden" name="next" value={nextPath || "/home"} />
+
               <input
                 type="password"
                 inputMode="numeric"
+                name="passcode"
                 placeholder="Passcode"
                 value={passcode}
                 onChange={(e) => setPasscode(e.target.value)}
@@ -115,9 +92,9 @@ export function AuthScreen({ initialError }: { initialError?: string }) {
                 required
               />
 
-              {error ? (
+              {initialError ? (
                 <p className="rounded-xl border border-rose-300/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">
-                  {error}
+                  {initialError}
                 </p>
               ) : null}
 

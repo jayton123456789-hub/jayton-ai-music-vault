@@ -11,6 +11,7 @@ import {
 type LoginBody = {
   username?: string;
   passcode?: string;
+  next?: string;
 };
 
 const FALLBACK_USERS: Record<string, { passcode: string; displayName: string; id: number }> = {
@@ -29,19 +30,34 @@ export async function POST(request: Request) {
 
   let username = "";
   let passcode = "";
+  let nextPath = "/home";
 
   if (contentType.includes("application/json")) {
     const body = (await request.json().catch(() => null)) as LoginBody | null;
     username = body?.username?.trim() || "";
     passcode = body?.passcode?.trim() || "";
+    nextPath = body?.next?.trim() || "/home";
   } else if (contentType.includes("application/x-www-form-urlencoded") || contentType.includes("multipart/form-data")) {
     const form = await request.formData().catch(() => null);
     username = String(form?.get("username") ?? "").trim();
     passcode = String(form?.get("passcode") ?? "").trim();
+    nextPath = String(form?.get("next") ?? "").trim() || "/home";
+  }
+
+  if (!/^\/(?!\/)/.test(nextPath)) {
+    nextPath = "/home";
   }
 
   if (!username || !passcode) {
-    return wantsHtml ? NextResponse.redirect(new URL("/login?error=missing", request.url)) : badRequestJson();
+    if (wantsHtml) {
+      const url = new URL("/login?error=missing", request.url);
+      if (nextPath && nextPath !== "/home") {
+        url.searchParams.set("next", nextPath);
+      }
+      return NextResponse.redirect(url);
+    }
+
+    return badRequestJson();
   }
 
   const fallback = FALLBACK_USERS[username.toLowerCase()];
@@ -78,9 +94,15 @@ export async function POST(request: Request) {
   }
 
   if (!resolvedUser) {
-    return wantsHtml
-      ? NextResponse.redirect(new URL(`/login?error=invalid&user=${encodeURIComponent(username)}`, request.url))
-      : NextResponse.json({ error: "Invalid credentials." }, { status: 401 });
+    if (wantsHtml) {
+      const url = new URL(`/login?error=invalid&user=${encodeURIComponent(username)}`, request.url);
+      if (nextPath && nextPath !== "/home") {
+        url.searchParams.set("next", nextPath);
+      }
+      return NextResponse.redirect(url);
+    }
+
+    return NextResponse.json({ error: "Invalid credentials." }, { status: 401 });
   }
 
   const token = await createSessionToken({
@@ -90,7 +112,7 @@ export async function POST(request: Request) {
   });
 
   const response = wantsHtml
-    ? NextResponse.redirect(new URL("/home", request.url))
+    ? NextResponse.redirect(new URL(nextPath || "/home", request.url))
     : NextResponse.json({
         ok: true,
         user: {
