@@ -178,10 +178,17 @@ export function getUploadAccessSettings(): UploadAccessSettings {
   );
   const rows = statement.all() as Array<{ key: string; value: string }>;
   const map = new Map(rows.map((row) => [row.key, row.value]));
+  const parseSetting = (value: string | undefined) => {
+    if (typeof value === "undefined") {
+      return true;
+    }
+
+    return value === "true";
+  };
 
   return {
-    allowDillonUpload: map.get("allowDillonUpload") === "true",
-    allowNickUpload: map.get("allowNickUpload") === "true"
+    allowDillonUpload: parseSetting(map.get("allowDillonUpload")),
+    allowNickUpload: parseSetting(map.get("allowNickUpload"))
   };
 }
 

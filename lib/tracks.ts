@@ -6,6 +6,10 @@ import {
 } from "@/lib/track-store";
 
 export type TrackStyle = "MALE" | "FEMALE";
+export type UploadAccessSettings = {
+  allowDillonUpload: boolean;
+  allowNickUpload: boolean;
+};
 
 export type TrackRecord = {
   id: number;
@@ -144,9 +148,6 @@ export function getUploaderSettings() {
   return getUploadAccessSettings();
 }
 
-export function updateUploaderSettings(input: {
-  allowDillonUpload: boolean;
-  allowNickUpload: boolean;
-}) {
+export function updateUploaderSettings(input: UploadAccessSettings) {
   return setUploadAccessSettings(input);
 }

@@ -2,19 +2,15 @@
 
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 
 import type { SessionPayload } from "@/lib/auth/session";
-import type { SerializedTrack } from "@/lib/tracks";
+import type { SerializedTrack, UploadAccessSettings } from "@/lib/tracks";
 
 type UploadStudioProps = {
   user: SessionPayload;
   recentTracks: SerializedTrack[];
-};
-
-type UploadAccessSettings = {
-  allowDillonUpload: boolean;
-  allowNickUpload: boolean;
+  initialSettings: UploadAccessSettings;
 };
 
 const STYLE_OPTIONS = [
@@ -22,7 +18,7 @@ const STYLE_OPTIONS = [
   { value: "FEMALE", label: "Female" }
 ] as const;
 
-export function UploadStudio({ user, recentTracks }: UploadStudioProps) {
+export function UploadStudio({ user, recentTracks, initialSettings }: UploadStudioProps) {
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
@@ -34,25 +30,10 @@ export function UploadStudio({ user, recentTracks }: UploadStudioProps) {
   const [, startTransition] = useTransition();
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
 
   const isJayton = user.username === "jayton";
-  const [settings, setSettings] = useState<UploadAccessSettings>({
-    allowDillonUpload: false,
-    allowNickUpload: false
-  });
-
-  useEffect(() => {
-    fetch("/api/settings/upload-access")
-      .then((response) => response.json())
-      .then((payload: { settings?: UploadAccessSettings }) => {
-        if (payload.settings) {
-          setSettings(payload.settings);
-        }
-      })
-      .catch(() => {
-        // non-fatal
-      });
-  }, []);
+  const [settings, setSettings] = useState<UploadAccessSettings>(initialSettings);
 
   const canUpload =
     user.username === "jayton" ||
@@ -72,12 +53,31 @@ export function UploadStudio({ user, recentTracks }: UploadStudioProps) {
   }
 
   async function saveSetting(next: UploadAccessSettings) {
+    const previous = settings;
+    setIsSavingSettings(true);
     setSettings(next);
-    await fetch("/api/settings/upload-access", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(next)
-    });
+
+    try {
+      const response = await fetch("/api/settings/upload-access", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(next)
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | { error?: string; settings?: UploadAccessSettings }
+        | null;
+
+      if (!response.ok || !payload?.settings) {
+        throw new Error(payload?.error ?? "Failed to save upload access settings.");
+      }
+
+      setSettings(payload.settings);
+    } catch {
+      setSettings(previous);
+      setError("Failed to save upload access settings.");
+    } finally {
+      setIsSavingSettings(false);
+    }
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -271,6 +271,7 @@ export function UploadStudio({ user, recentTracks }: UploadStudioProps) {
                     allowDillonUpload: !settings.allowDillonUpload
                   })
                 }
+                disabled={isSavingSettings}
                 className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-left"
               >
                 <span className="text-sm text-white">Dillon upload</span>
@@ -286,6 +287,7 @@ export function UploadStudio({ user, recentTracks }: UploadStudioProps) {
                     allowNickUpload: !settings.allowNickUpload
                   })
                 }
+                disabled={isSavingSettings}
                 className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-left"
               >
                 <span className="text-sm text-white">Nick upload</span>

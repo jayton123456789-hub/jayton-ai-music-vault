@@ -1,11 +1,28 @@
-import { ProtectedPage } from "@/components/protected-page";
+import { redirect } from "next/navigation";
 
-export default function VideosPage() {
+import { PortalShell } from "@/components/portal-shell";
+import { VideosHub } from "@/components/videos-hub";
+import { getSession } from "@/lib/auth/server";
+import { getChannelVideos, getYoutubeChannelUrl } from "@/lib/youtube";
+
+export default async function VideosPage() {
+  const session = await getSession();
+
+  if (!session) {
+    redirect("/login");
+  }
+
+  const videos = await getChannelVideos(14);
+  const channelUrl = getYoutubeChannelUrl();
+
   return (
-    <ProtectedPage
+    <PortalShell
       currentPath="/videos"
-      title="Video exclusives"
-      description="Exclusive video sections can now be added without reworking the authentication or protected-route shell."
-    />
+      title="Video Vault"
+      description="Watch Jayton AI Music channel releases directly inside the portal."
+      user={session}
+    >
+      <VideosHub videos={videos} channelUrl={channelUrl} />
+    </PortalShell>
   );
 }

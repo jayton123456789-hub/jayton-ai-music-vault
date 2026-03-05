@@ -27,16 +27,26 @@ export async function POST(request: Request) {
   }
 
   const body = (await request.json().catch(() => null)) as
-    | { allowDillonUpload?: boolean; allowNickUpload?: boolean }
+    | { allowDillonUpload?: unknown; allowNickUpload?: unknown }
     | null;
 
   if (!body) {
     return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
   }
 
+  const current = getUploaderSettings();
+  const hasDillon = typeof body.allowDillonUpload === "boolean";
+  const hasNick = typeof body.allowNickUpload === "boolean";
+
+  if (!hasDillon && !hasNick) {
+    return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+  }
+
   const settings = updateUploaderSettings({
-    allowDillonUpload: Boolean(body.allowDillonUpload),
-    allowNickUpload: Boolean(body.allowNickUpload)
+    allowDillonUpload: hasDillon
+      ? (body.allowDillonUpload as boolean)
+      : current.allowDillonUpload,
+    allowNickUpload: hasNick ? (body.allowNickUpload as boolean) : current.allowNickUpload
   });
 
   return NextResponse.json({ settings });
