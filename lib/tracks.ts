@@ -1,15 +1,20 @@
 import {
   createTrackRecord,
+  findTrackRecordBySlug,
   getUploadAccessSettings,
   listPublishedTrackRecords,
   setUploadAccessSettings
 } from "@/lib/track-store";
+import {
+  isBlobEnabled,
+  mutatePersistentState,
+  readPersistentState,
+  type PersistentTrack,
+  type UploadAccessSettings
+} from "@/lib/persistent-store";
 
 export type TrackStyle = "MALE" | "FEMALE";
-export type UploadAccessSettings = {
-  allowDillonUpload: boolean;
-  allowNickUpload: boolean;
-};
+export type { UploadAccessSettings } from "@/lib/persistent-store";
 
 export type TrackRecord = {
   id: number;
@@ -107,9 +112,36 @@ export function serializeTrack(track: TrackRecord): SerializedTrack {
   };
 }
 
-export async function getPublishedTracks(limit?: number) {
-  const tracks = listPublishedTrackRecords(limit);
+function fromPersistentTrack(track: PersistentTrack): SerializedTrack {
+  return {
+    ...track,
+    coverPath: normalizeCoverPath(track.coverPath)
+  };
+}
 
+export async function findTrackBySlug(slug: string) {
+  if (isBlobEnabled) {
+    const state = await readPersistentState();
+    const track = state?.tracks.find((item) => item.slug === slug) ?? null;
+    return track ? fromPersistentTrack(track) : null;
+  }
+
+  const record = findTrackRecordBySlug(slug);
+  return record ? serializeTrack(record) : null;
+}
+
+export async function getPublishedTracks(limit?: number) {
+  if (isBlobEnabled) {
+    const state = await readPersistentState();
+    const tracks = (state?.tracks ?? [])
+      .filter((track) => track.isPublished)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .map(fromPersistentTrack);
+
+    return typeof limit === "number" ? tracks.slice(0, limit) : tracks;
+  }
+
+  const tracks = listPublishedTrackRecords(limit);
   return tracks.map(serializeTrack);
 }
 
@@ -128,6 +160,33 @@ export async function createTrack(input: {
   createdByUserId: number;
   releaseDate?: string | null;
 }) {
+  if (isBlobEnabled) {
+    return mutatePersistentState((state) => {
+      const now = new Date().toISOString();
+      const maxId = state.tracks.reduce((acc, item) => Math.max(acc, item.id), 0);
+      const track: PersistentTrack = {
+        id: maxId + 1,
+        title: input.title,
+        slug: input.slug,
+        audioPath: input.audioPath,
+        coverPath: normalizeCoverPath(input.coverPath),
+        lyrics: input.lyrics,
+        style: input.style,
+        tags: parseTrackTags(input.tags),
+        sourceType: "SUNO",
+        createdByUserId: input.createdByUserId,
+        createdByDisplayName: getUploaderDisplayName(input.createdByUserId),
+        createdAt: now,
+        updatedAt: now,
+        releaseDate: input.releaseDate ?? null,
+        isPublished: true
+      };
+
+      state.tracks.unshift(track);
+      return track;
+    }).then(fromPersistentTrack);
+  }
+
   return serializeTrack(
     createTrackRecord({
       ...input,
@@ -136,12 +195,38 @@ export async function createTrack(input: {
   );
 }
 
-export function canUserUpload(username: string) {
+export async function getUploaderSettings() {
+  if (isBlobEnabled) {
+    const state = await readPersistentState();
+    return (
+      state?.settings ?? {
+        allowDillonUpload: true,
+        allowNickUpload: true
+      }
+    );
+  }
+
+  return getUploadAccessSettings();
+}
+
+export async function updateUploaderSettings(input: UploadAccessSettings) {
+  if (isBlobEnabled) {
+    return mutatePersistentState((state) => {
+      state.settings.allowDillonUpload = input.allowDillonUpload;
+      state.settings.allowNickUpload = input.allowNickUpload;
+      return state.settings;
+    });
+  }
+
+  return setUploadAccessSettings(input);
+}
+
+export async function canUserUpload(username: string) {
   if (username === "jayton") {
     return true;
   }
 
-  const settings = getUploadAccessSettings();
+  const settings = await getUploaderSettings();
 
   if (username === "dillon") {
     return settings.allowDillonUpload;
@@ -152,12 +237,4 @@ export function canUserUpload(username: string) {
   }
 
   return false;
-}
-
-export function getUploaderSettings() {
-  return getUploadAccessSettings();
-}
-
-export function updateUploaderSettings(input: UploadAccessSettings) {
-  return setUploadAccessSettings(input);
 }

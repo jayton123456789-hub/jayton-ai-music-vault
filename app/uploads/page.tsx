@@ -13,7 +13,7 @@ export default async function UploadsPage() {
   }
 
   const recentTracks = await getNewestTracks(4);
-  const uploaderSettings = getUploaderSettings();
+  const uploaderSettings = await getUploaderSettings();
 
   return (
     <PortalShell

@@ -12,7 +12,7 @@ export async function GET() {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
-  return NextResponse.json({ settings: getUploaderSettings() });
+  return NextResponse.json({ settings: await getUploaderSettings() });
 }
 
 export async function POST(request: Request) {
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
   }
 
-  const current = getUploaderSettings();
+  const current = await getUploaderSettings();
   const hasDillon = typeof body.allowDillonUpload === "boolean";
   const hasNick = typeof body.allowNickUpload === "boolean";
 
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
   }
 
-  const settings = updateUploaderSettings({
+  const settings = await updateUploaderSettings({
     allowDillonUpload: hasDillon
       ? (body.allowDillonUpload as boolean)
       : current.allowDillonUpload,

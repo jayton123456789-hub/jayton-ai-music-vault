@@ -101,7 +101,7 @@ export async function ensureUploadDirectories() {
   ]);
 }
 
-function buildGradientMarkup(title: string, style: TrackStyle) {
+export function buildPlaceholderCoverSvg(title: string, style: TrackStyle) {
   const gradient =
     style === "FEMALE"
       ? ["#fb7185", "#f59e0b", "#fca5a5"]
@@ -135,7 +135,7 @@ export async function createPlaceholderCover(title: string, style: TrackStyle, s
   const fileName = `${stem}.svg`;
   const filePath = path.join(COVER_UPLOAD_DIR, fileName);
 
-  await writeFile(filePath, buildGradientMarkup(title, style), "utf8");
+  await writeFile(filePath, buildPlaceholderCoverSvg(title, style), "utf8");
 
   return buildUploadedPublicPath("covers", fileName);
 }

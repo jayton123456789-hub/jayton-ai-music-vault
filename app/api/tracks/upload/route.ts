@@ -4,10 +4,10 @@ import { NextResponse } from "next/server";
 import { parseBuffer } from "music-metadata";
 
 import { getSession } from "@/lib/auth/server";
-import { findTrackRecordBySlug } from "@/lib/track-store";
-import { canUserUpload, createTrack, type TrackStyle } from "@/lib/tracks";
+import { createTrack, canUserUpload, findTrackBySlug, type TrackStyle } from "@/lib/tracks";
 import {
   ACCEPTED_AUDIO_EXTENSIONS,
+  buildPlaceholderCoverSvg,
   buildUploadedPublicPath,
   createPlaceholderCover,
   createUniqueFileStem,
@@ -19,6 +19,7 @@ import {
   toJsonTagString
 } from "@/lib/upload-utils";
 import { generateTagsFromStylePrompt } from "@/lib/style-tags";
+import { isBlobEnabled, uploadBlobFile } from "@/lib/persistent-store";
 
 export const runtime = "nodejs";
 
@@ -28,12 +29,16 @@ function isUploadFile(value: FormDataEntryValue | null): value is File {
   return value instanceof File && value.size > 0;
 }
 
+function invalidRequest(message: string, status = 400) {
+  return NextResponse.json({ error: message }, { status });
+}
+
 async function buildUniqueSlug(title: string) {
   const base = sanitizeBaseName(title);
   let candidate = base;
   let counter = 2;
 
-  while (findTrackRecordBySlug(candidate)) {
+  while (await findTrackBySlug(candidate)) {
     candidate = `${base}-${counter}`;
     counter += 1;
   }
@@ -41,8 +46,13 @@ async function buildUniqueSlug(title: string) {
   return candidate;
 }
 
-function invalidRequest(message: string, status = 400) {
-  return NextResponse.json({ error: message }, { status });
+function coverExtensionFromMime(mimeType?: string) {
+  const normalized = (mimeType || "").toLowerCase();
+  if (normalized.includes("png")) return "png";
+  if (normalized.includes("webp")) return "webp";
+  if (normalized.includes("gif")) return "gif";
+  if (normalized.includes("jpeg") || normalized.includes("jpg")) return "jpg";
+  return "jpg";
 }
 
 export async function POST(request: Request) {
@@ -52,7 +62,7 @@ export async function POST(request: Request) {
     return invalidRequest("Authentication required.", 401);
   }
 
-  if (!canUserUpload(session.username)) {
+  if (!(await canUserUpload(session.username))) {
     return invalidRequest("Uploads are disabled for this account.", 403);
   }
 
@@ -95,16 +105,23 @@ export async function POST(request: Request) {
   }
 
   try {
-    await ensureUploadDirectories();
+    if (!isBlobEnabled) {
+      await ensureUploadDirectories();
+    }
 
     const buffer = Buffer.from(await audioFile.arrayBuffer());
     const slug = await buildUniqueSlug(title);
     const fileStem = createUniqueFileStem(title);
     const audioFileName = `${fileStem}${extension}`;
-    const audioPath = buildUploadedPublicPath("audio", audioFileName);
-    const audioFilePath = resolveUploadedFilePath("audio", audioFileName);
 
-    await writeFile(audioFilePath, buffer);
+    const audioPath = isBlobEnabled
+      ? await uploadBlobFile(`uploads/audio/${audioFileName}`, buffer, audioFile.type || "audio/mpeg")
+      : buildUploadedPublicPath("audio", audioFileName);
+
+    if (!isBlobEnabled) {
+      const audioFilePath = resolveUploadedFilePath("audio", audioFileName);
+      await writeFile(audioFilePath, buffer);
+    }
 
     let coverPath: string;
     let releaseDate: string | null = null;
@@ -131,11 +148,36 @@ export async function POST(request: Request) {
         releaseDate = new Date(Date.UTC(metadata.common.year, 0, 1)).toISOString();
       }
 
-      coverPath = picture
-        ? await saveCoverFile(picture.data, picture.format || "image/jpeg", `${fileStem}-cover`)
-        : await createPlaceholderCover(title, style, `${fileStem}-cover`);
+      if (picture) {
+        if (isBlobEnabled) {
+          const ext = coverExtensionFromMime(picture.format);
+          coverPath = await uploadBlobFile(
+            `uploads/covers/${fileStem}-cover.${ext}`,
+            Buffer.from(picture.data),
+            picture.format || "image/jpeg"
+          );
+        } else {
+          coverPath = await saveCoverFile(picture.data, picture.format || "image/jpeg", `${fileStem}-cover`);
+        }
+      } else if (isBlobEnabled) {
+        coverPath = await uploadBlobFile(
+          `uploads/covers/${fileStem}-cover.svg`,
+          buildPlaceholderCoverSvg(title, style),
+          "image/svg+xml"
+        );
+      } else {
+        coverPath = await createPlaceholderCover(title, style, `${fileStem}-cover`);
+      }
     } catch {
-      coverPath = await createPlaceholderCover(title, style, `${fileStem}-cover`);
+      if (isBlobEnabled) {
+        coverPath = await uploadBlobFile(
+          `uploads/covers/${fileStem}-cover.svg`,
+          buildPlaceholderCoverSvg(title, style),
+          "image/svg+xml"
+        );
+      } else {
+        coverPath = await createPlaceholderCover(title, style, `${fileStem}-cover`);
+      }
     }
 
     const track = await createTrack({
@@ -150,13 +192,7 @@ export async function POST(request: Request) {
       releaseDate
     });
 
-    return NextResponse.json(
-      {
-        ok: true,
-        track
-      },
-      { status: 201 }
-    );
+    return NextResponse.json({ ok: true, track }, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Upload failed.";
     return invalidRequest(message, 500);
