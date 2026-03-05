@@ -94,66 +94,71 @@ export async function POST(request: Request) {
     );
   }
 
-  await ensureUploadDirectories();
-
-  const buffer = Buffer.from(await audioFile.arrayBuffer());
-  const slug = await buildUniqueSlug(title);
-  const fileStem = createUniqueFileStem(title);
-  const audioFileName = `${fileStem}${extension}`;
-  const audioPath = buildUploadedPublicPath("audio", audioFileName);
-  const audioFilePath = resolveUploadedFilePath("audio", audioFileName);
-
-  await writeFile(audioFilePath, buffer);
-
-  let coverPath: string;
-  let releaseDate: string | null = null;
-
   try {
-    const metadata = (await parseBuffer(buffer)) as {
-      common?: {
-        picture?: Array<{ data: Uint8Array; format?: string }>;
-        date?: string | Date;
-        year?: number;
+    await ensureUploadDirectories();
+
+    const buffer = Buffer.from(await audioFile.arrayBuffer());
+    const slug = await buildUniqueSlug(title);
+    const fileStem = createUniqueFileStem(title);
+    const audioFileName = `${fileStem}${extension}`;
+    const audioPath = buildUploadedPublicPath("audio", audioFileName);
+    const audioFilePath = resolveUploadedFilePath("audio", audioFileName);
+
+    await writeFile(audioFilePath, buffer);
+
+    let coverPath: string;
+    let releaseDate: string | null = null;
+
+    try {
+      const metadata = (await parseBuffer(buffer)) as {
+        common?: {
+          picture?: Array<{ data: Uint8Array; format?: string }>;
+          date?: string | Date;
+          year?: number;
+        };
       };
-    };
 
-    const picture = metadata.common?.picture?.find((item) => item?.data?.length) ?? null;
+      const picture = metadata.common?.picture?.find((item) => item?.data?.length) ?? null;
 
-    if (metadata.common?.date instanceof Date && !Number.isNaN(metadata.common.date.getTime())) {
-      releaseDate = metadata.common.date.toISOString();
-    } else if (typeof metadata.common?.date === "string") {
-      const parsedDate = new Date(metadata.common.date);
-      if (!Number.isNaN(parsedDate.getTime())) {
-        releaseDate = parsedDate.toISOString();
+      if (metadata.common?.date instanceof Date && !Number.isNaN(metadata.common.date.getTime())) {
+        releaseDate = metadata.common.date.toISOString();
+      } else if (typeof metadata.common?.date === "string") {
+        const parsedDate = new Date(metadata.common.date);
+        if (!Number.isNaN(parsedDate.getTime())) {
+          releaseDate = parsedDate.toISOString();
+        }
+      } else if (typeof metadata.common?.year === "number" && metadata.common.year > 1900) {
+        releaseDate = new Date(Date.UTC(metadata.common.year, 0, 1)).toISOString();
       }
-    } else if (typeof metadata.common?.year === "number" && metadata.common.year > 1900) {
-      releaseDate = new Date(Date.UTC(metadata.common.year, 0, 1)).toISOString();
+
+      coverPath = picture
+        ? await saveCoverFile(picture.data, picture.format || "image/jpeg", `${fileStem}-cover`)
+        : await createPlaceholderCover(title, style, `${fileStem}-cover`);
+    } catch {
+      coverPath = await createPlaceholderCover(title, style, `${fileStem}-cover`);
     }
 
-    coverPath = picture
-      ? await saveCoverFile(picture.data, picture.format || "image/jpeg", `${fileStem}-cover`)
-      : await createPlaceholderCover(title, style, `${fileStem}-cover`);
-  } catch {
-    coverPath = await createPlaceholderCover(title, style, `${fileStem}-cover`);
+    const track = await createTrack({
+      title,
+      slug,
+      audioPath,
+      coverPath,
+      lyrics,
+      style,
+      tags: toJsonTagString(tags),
+      createdByUserId: session.userId,
+      releaseDate
+    });
+
+    return NextResponse.json(
+      {
+        ok: true,
+        track
+      },
+      { status: 201 }
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Upload failed.";
+    return invalidRequest(message, 500);
   }
-
-  const track = await createTrack({
-    title,
-    slug,
-    audioPath,
-    coverPath,
-    lyrics,
-    style,
-    tags: toJsonTagString(tags),
-    createdByUserId: session.userId,
-    releaseDate
-  });
-
-  return NextResponse.json(
-    {
-      ok: true,
-      track
-    },
-    { status: 201 }
-  );
 }

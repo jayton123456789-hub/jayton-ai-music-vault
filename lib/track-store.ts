@@ -25,7 +25,10 @@ type UploadAccessSettings = {
 };
 
 const isServerlessRuntime =
-  process.env.VERCEL === "1" || process.env.VERCEL_ENV === "production";
+  process.env.VERCEL === "1" ||
+  Boolean(process.env.VERCEL_ENV) ||
+  process.cwd().startsWith("/var/task") ||
+  process.env.NODE_ENV === "production";
 
 const databaseFilePath = isServerlessRuntime
   ? path.join(os.tmpdir(), "jayton-ai-music-vault.db")
