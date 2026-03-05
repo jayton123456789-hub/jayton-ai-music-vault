@@ -23,71 +23,52 @@ export type PersistentTrack = {
   isPublished: boolean;
 };
 
-type PersistentState = {
-  tracks: PersistentTrack[];
-  settings: UploadAccessSettings;
-};
-
-const STATE_PATH = "portal/state.json";
+const TRACKS_PREFIX = "portal/tracks/";
+const SETTINGS_PREFIX = "portal/settings/";
 
 export const isBlobEnabled = Boolean(process.env.BLOB_READ_WRITE_TOKEN);
 
-function getDefaultState(): PersistentState {
+function defaultUploadSettings(): UploadAccessSettings {
   return {
-    tracks: [],
-    settings: {
-      allowDillonUpload: true,
-      allowNickUpload: true
-    }
+    allowDillonUpload: true,
+    allowNickUpload: true
   };
 }
 
-function normalizeState(value: Partial<PersistentState> | null | undefined): PersistentState {
-  const defaults = getDefaultState();
+async function fetchBlobJson<T>(url: string): Promise<T | null> {
+  const response = await fetch(`${url}?ts=${Date.now()}`, { cache: "no-store" }).catch(() => null);
 
-  return {
-    tracks: Array.isArray(value?.tracks) ? value!.tracks : defaults.tracks,
-    settings: {
-      allowDillonUpload:
-        typeof value?.settings?.allowDillonUpload === "boolean"
-          ? value.settings.allowDillonUpload
-          : defaults.settings.allowDillonUpload,
-      allowNickUpload:
-        typeof value?.settings?.allowNickUpload === "boolean"
-          ? value.settings.allowNickUpload
-          : defaults.settings.allowNickUpload
-    }
-  };
-}
-
-export async function readPersistentState(): Promise<PersistentState | null> {
-  if (!isBlobEnabled) {
+  if (!response?.ok) {
     return null;
   }
 
-  const response = await list({ prefix: STATE_PATH, limit: 1 });
-  const blob = response.blobs.find((item) => item.pathname === STATE_PATH) ?? response.blobs[0];
-
-  if (!blob) {
-    return getDefaultState();
-  }
-
-  const file = await fetch(blob.url, { cache: "no-store" }).catch(() => null);
-
-  if (!file?.ok) {
-    return getDefaultState();
-  }
-
-  const payload = (await file.json().catch(() => null)) as Partial<PersistentState> | null;
-  return normalizeState(payload);
+  return (await response.json().catch(() => null)) as T | null;
 }
 
-export async function writePersistentState(state: PersistentState) {
+export async function listTracksFromBlob(): Promise<PersistentTrack[]> {
+  if (!isBlobEnabled) {
+    return [];
+  }
+
+  const response = await list({ prefix: TRACKS_PREFIX, limit: 200 });
+  const blobs = response.blobs.sort(
+    (a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
+  );
+
+  const records = await Promise.all(blobs.map((blob) => fetchBlobJson<PersistentTrack>(blob.url)));
+
+  return records.filter(Boolean) as PersistentTrack[];
+}
+
+export async function saveTrackToBlob(track: PersistentTrack) {
   if (!isBlobEnabled) {
     return;
   }
 
-  await put(STATE_PATH, JSON.stringify(state), {
+  const stamp = track.createdAt.replace(/[:.]/g, "-");
+  const pathname = `${TRACKS_PREFIX}${stamp}-${track.slug}.json`;
+
+  await put(pathname, JSON.stringify(track), {
     access: "public",
     contentType: "application/json",
     addRandomSuffix: false,
@@ -95,13 +76,50 @@ export async function writePersistentState(state: PersistentState) {
   });
 }
 
-export async function mutatePersistentState<T>(
-  mutator: (current: PersistentState) => T | Promise<T>
-) {
-  const current = (await readPersistentState()) ?? getDefaultState();
-  const result = await mutator(current);
-  await writePersistentState(current);
-  return result;
+export async function readUploadSettingsFromBlob(): Promise<UploadAccessSettings> {
+  if (!isBlobEnabled) {
+    return defaultUploadSettings();
+  }
+
+  const response = await list({ prefix: SETTINGS_PREFIX, limit: 20 });
+
+  if (!response.blobs.length) {
+    return defaultUploadSettings();
+  }
+
+  const latest = response.blobs.sort(
+    (a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
+  )[0];
+
+  const payload = await fetchBlobJson<Partial<UploadAccessSettings>>(latest.url);
+
+  return {
+    allowDillonUpload:
+      typeof payload?.allowDillonUpload === "boolean"
+        ? payload.allowDillonUpload
+        : true,
+    allowNickUpload:
+      typeof payload?.allowNickUpload === "boolean"
+        ? payload.allowNickUpload
+        : true
+  };
+}
+
+export async function writeUploadSettingsToBlob(settings: UploadAccessSettings) {
+  if (!isBlobEnabled) {
+    return settings;
+  }
+
+  const pathname = `${SETTINGS_PREFIX}${Date.now()}.json`;
+
+  await put(pathname, JSON.stringify(settings), {
+    access: "public",
+    contentType: "application/json",
+    addRandomSuffix: false,
+    allowOverwrite: true
+  });
+
+  return settings;
 }
 
 export async function uploadBlobFile(pathname: string, data: Blob | Buffer | string, contentType?: string) {

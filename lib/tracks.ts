@@ -7,9 +7,11 @@ import {
 } from "@/lib/track-store";
 import {
   isBlobEnabled,
-  mutatePersistentState,
-  readPersistentState,
+  listTracksFromBlob,
+  readUploadSettingsFromBlob,
+  saveTrackToBlob,
   type PersistentTrack,
+  writeUploadSettingsToBlob,
   type UploadAccessSettings
 } from "@/lib/persistent-store";
 
@@ -74,22 +76,14 @@ export function parseTrackTags(tags: string) {
       const parsed = JSON.parse(trimmed);
 
       if (Array.isArray(parsed)) {
-        return parsed
-          .map((value) => String(value).trim())
-          .filter(Boolean);
+        return parsed.map((value) => String(value).trim()).filter(Boolean);
       }
     } catch {
-      return trimmed
-        .split(",")
-        .map((value) => value.trim())
-        .filter(Boolean);
+      return trimmed.split(",").map((value) => value.trim()).filter(Boolean);
     }
   }
 
-  return trimmed
-    .split(",")
-    .map((value) => value.trim())
-    .filter(Boolean);
+  return trimmed.split(",").map((value) => value.trim()).filter(Boolean);
 }
 
 export function serializeTrack(track: TrackRecord): SerializedTrack {
@@ -121,9 +115,9 @@ function fromPersistentTrack(track: PersistentTrack): SerializedTrack {
 
 export async function findTrackBySlug(slug: string) {
   if (isBlobEnabled) {
-    const state = await readPersistentState();
-    const track = state?.tracks.find((item) => item.slug === slug) ?? null;
-    return track ? fromPersistentTrack(track) : null;
+    const tracks = await listTracksFromBlob();
+    const found = tracks.find((item) => item.slug === slug) ?? null;
+    return found ? fromPersistentTrack(found) : null;
   }
 
   const record = findTrackRecordBySlug(slug);
@@ -132,8 +126,7 @@ export async function findTrackBySlug(slug: string) {
 
 export async function getPublishedTracks(limit?: number) {
   if (isBlobEnabled) {
-    const state = await readPersistentState();
-    const tracks = (state?.tracks ?? [])
+    const tracks = (await listTracksFromBlob())
       .filter((track) => track.isPublished)
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .map(fromPersistentTrack);
@@ -161,30 +154,27 @@ export async function createTrack(input: {
   releaseDate?: string | null;
 }) {
   if (isBlobEnabled) {
-    return mutatePersistentState((state) => {
-      const now = new Date().toISOString();
-      const maxId = state.tracks.reduce((acc, item) => Math.max(acc, item.id), 0);
-      const track: PersistentTrack = {
-        id: maxId + 1,
-        title: input.title,
-        slug: input.slug,
-        audioPath: input.audioPath,
-        coverPath: normalizeCoverPath(input.coverPath),
-        lyrics: input.lyrics,
-        style: input.style,
-        tags: parseTrackTags(input.tags),
-        sourceType: "SUNO",
-        createdByUserId: input.createdByUserId,
-        createdByDisplayName: getUploaderDisplayName(input.createdByUserId),
-        createdAt: now,
-        updatedAt: now,
-        releaseDate: input.releaseDate ?? null,
-        isPublished: true
-      };
+    const now = new Date().toISOString();
+    const track: PersistentTrack = {
+      id: Date.now(),
+      title: input.title,
+      slug: input.slug,
+      audioPath: input.audioPath,
+      coverPath: normalizeCoverPath(input.coverPath),
+      lyrics: input.lyrics,
+      style: input.style,
+      tags: parseTrackTags(input.tags),
+      sourceType: "SUNO",
+      createdByUserId: input.createdByUserId,
+      createdByDisplayName: getUploaderDisplayName(input.createdByUserId),
+      createdAt: now,
+      updatedAt: now,
+      releaseDate: input.releaseDate ?? null,
+      isPublished: true
+    };
 
-      state.tracks.unshift(track);
-      return track;
-    }).then(fromPersistentTrack);
+    await saveTrackToBlob(track);
+    return fromPersistentTrack(track);
   }
 
   return serializeTrack(
@@ -197,13 +187,7 @@ export async function createTrack(input: {
 
 export async function getUploaderSettings() {
   if (isBlobEnabled) {
-    const state = await readPersistentState();
-    return (
-      state?.settings ?? {
-        allowDillonUpload: true,
-        allowNickUpload: true
-      }
-    );
+    return readUploadSettingsFromBlob();
   }
 
   return getUploadAccessSettings();
@@ -211,11 +195,7 @@ export async function getUploaderSettings() {
 
 export async function updateUploaderSettings(input: UploadAccessSettings) {
   if (isBlobEnabled) {
-    return mutatePersistentState((state) => {
-      state.settings.allowDillonUpload = input.allowDillonUpload;
-      state.settings.allowNickUpload = input.allowNickUpload;
-      return state.settings;
-    });
+    return writeUploadSettingsToBlob(input);
   }
 
   return setUploadAccessSettings(input);
